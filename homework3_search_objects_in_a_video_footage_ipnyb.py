@@ -7,7 +7,6 @@ from tensorflow.keras.applications import InceptionV3
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from huggingface_hub import hf_hub_download
 
 # Function to extract frames from the uploaded video
 def get_frames(uploaded_file):
@@ -70,6 +69,19 @@ def detect_all_objects(frame_filenames):
         all_obj = list(set(all_objects))
 
         return frame_obj_dict, all_obj
+
+# Function to draw bounding boxes around detected objects
+def draw_bounding_boxes(frame_path, objects):
+    frame = cv2.imread(frame_path)
+    h, w, _ = frame.shape
+    for obj in objects:
+        label = obj['label']
+        score = obj['score']
+        (x, y, w, h) = obj['box']
+        color = (0, 255, 0)  # Green for bounding box
+        frame = cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        frame = cv2.putText(frame, f"{label} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+    return frame
 
 # Function to search for a specific object in the frames
 def search_object(search_query, frame_obj_dict, all_obj):
