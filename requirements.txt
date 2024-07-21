@@ -2,6 +2,10 @@ streamlit
 tensorflow
 opencv-python-headless
 matplotlib
+keras
+keras.backend
+numpy
+pandas
 Pillow
-huggingface-hub
+huggingface_hub
 transformers

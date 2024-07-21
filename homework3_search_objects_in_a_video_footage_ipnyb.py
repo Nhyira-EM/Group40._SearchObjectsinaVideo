@@ -7,6 +7,7 @@ from tensorflow.keras.applications import InceptionV3
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+from huggingface_hub import hf_hub_download
 
 # Function to extract frames from the uploaded video
 def get_frames(uploaded_file):
