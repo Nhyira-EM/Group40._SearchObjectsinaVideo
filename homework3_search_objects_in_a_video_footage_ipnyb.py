@@ -89,17 +89,20 @@ def search_object(search_query, frame_obj_dict, all_obj):
                 frame = cv2.imread(frame_path)
                 st.image(frame, caption=f"{search_query} in {framee}", use_column_width=True)
 
+# Function to handle the complete process
+def obj_in_video(search_query):
+    uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
+    if uploaded_file:
+        frame_filenames = get_frames(uploaded_file)
+        if frame_filenames:
+            frame_obj_dict, all_obj = detect_all_objects(frame_filenames)
+            search_object(search_query, frame_obj_dict, all_obj)
+
 # Streamlit app layout
 st.title("Object Detection in Video Frames")
 
-uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
-if uploaded_file is not None:
-    frame_filenames = get_frames(uploaded_file)
-    if frame_filenames:
-        frame_obj_dict, all_obj = detect_all_objects(frame_filenames)
-        search_query = st.text_input("Enter the object to search for:")
-        if st.button("Search"):
-            if search_query:
-                search_object(search_query, frame_obj_dict, all_obj)
-            else:
-                st.warning("Please enter an object to search for.")
+search_query = st.text_input("Enter the object to search for:")
+if search_query:
+    obj_in_video(search_query)
+else:
+    st.warning("Please enter an object to search for.")
