@@ -3,13 +3,10 @@ import tensorflow as tf
 import cv2
 import os
 import shutil
-import numpy as np
-from PIL import Image
 from tensorflow.keras.applications import InceptionV3
-from tensorflow.keras.preprocessing import image as keras_image
-
-# Load the InceptionV3 model pre-trained on ImageNet
-model = InceptionV3(weights='imagenet')
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
 
 # Function to extract frames from the uploaded video
 def get_frames(uploaded_file):
@@ -43,59 +40,56 @@ def get_frames(uploaded_file):
             st.success(f"Extracted {frame_count} frames.")
         return frame_filenames
 
-# Function to detect objects in the frames and draw bounding boxes
-def detect_objects(frame_filenames):
-    frame_obj_dict = {}
-    all_objects = []
+# Function to detect objects in the frames
+def detect_all_objects(frame_filenames):
+    if not frame_filenames:
+        st.warning("No frames found")
+        return None, None
+    else:
+        model = InceptionV3(weights='imagenet', include_top=True)
+        frame_obj_dict = {}
+        for frame_filename in frame_filenames:
+            img = tf.io.read_file(frame_filename)
+            img = tf.image.decode_image(img, channels=3)
+            img = tf.cast(img, tf.float32)
+            img = tf.image.resize(img, (299, 299))
+            img = tf.keras.applications.inception_v3.preprocess_input(img)
+            img_expanded = tf.expand_dims(img, axis=0)
+            prediction = model.predict(img_expanded, verbose=0)
+            decoded_predictions = tf.keras.applications.inception_v3.decode_predictions(prediction, top=3)
+            img_dict = {}
+            for i, (imagenet_id, label, score) in enumerate(decoded_predictions[0]):
+                img_dict[i + 1] = label
+            frame_obj_dict[frame_filename] = img_dict
 
-    for frame_filename in frame_filenames:
-        frame = cv2.imread(frame_filename)
-        h, w = frame.shape[:2]
+        all_objects = []
+        for frame_name in frame_obj_dict.keys():
+            for obj_id in frame_obj_dict[frame_name].keys():
+                all_objects.append(frame_obj_dict[frame_name][obj_id])
+        all_obj = list(set(all_objects))
 
-        # Preprocess the frame for InceptionV3
-        img = keras_image.load_img(frame_filename, target_size=(299, 299))
-        img_array = keras_image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = tf.keras.applications.inception_v3.preprocess_input(img_array)
-
-        # Predict using the InceptionV3 model
-        predictions = model.predict(img_array)
-        decoded_predictions = tf.keras.applications.inception_v3.decode_predictions(predictions, top=3)[0]
-
-        objects = []
-        for (imagenet_id, label, score) in decoded_predictions:
-            objects.append({'label': label, 'score': score})
-            all_objects.append(label)
-
-        frame_obj_dict[frame_filename] = objects
-
-        for obj in objects:
-            label = obj['label']
-            score = obj['score']
-            # Draw bounding box (for demo purposes, drawing a fixed box)
-            startX, startY, endX, endY = 50, 50, w-50, h-50
-            cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
-            y = startY - 15 if startY - 15 > 15 else startY + 15
-            cv2.putText(frame, f"{label}: {score:.2f}", (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-        cv2.imwrite(frame_filename, frame)
-
-    all_objects = list(set(all_objects))
-    return frame_obj_dict, all_objects
+        return frame_obj_dict, all_obj
 
 # Function to search for a specific object in the frames
-def search_object(search_query, frame_obj_dict):
-    obj_frames = []
-    for frame_name, objects in frame_obj_dict.items():
-        if any(obj['label'] == search_query for obj in objects):
-            obj_frames.append(frame_name)
-
-    if len(obj_frames) == 0:
-        st.warning("Object doesn't exist!")
+def search_object(search_query, frame_obj_dict, all_obj):
+    if not frame_obj_dict:
+        st.warning("No frames found")
+        return None
     else:
-        for framee in obj_frames:
-            frame = cv2.imread(framee)
-            st.image(frame, caption=f"{search_query} in {framee}", use_column_width=True)
+        obj_frames = []
+        for frame_name in frame_obj_dict.keys():
+            if search_query in frame_obj_dict[frame_name].values():
+                obj_frames.append(frame_name)
+
+        if len(obj_frames) == 0:
+            st.warning("Object doesn't exist!")
+            st.write("Choose from the list below:")
+            st.write(all_obj)
+        else:
+            for framee in obj_frames:
+                frame_path = framee
+                frame = cv2.imread(frame_path)
+                st.image(frame, caption=f"{search_query} in {framee}", use_column_width=True)
 
 # Streamlit app layout
 st.title("Object Detection in Video Frames")
@@ -107,8 +101,8 @@ if st.button("Search"):
     if uploaded_file and search_query:
         frame_filenames = get_frames(uploaded_file)
         if frame_filenames:
-            frame_obj_dict, all_obj = detect_objects(frame_filenames)
-            search_object(search_query, frame_obj_dict)
+            frame_obj_dict, all_obj = detect_all_objects(frame_filenames)
+            search_object(search_query, frame_obj_dict, all_obj)
     elif not uploaded_file:
         st.warning("Please upload a video file.")
     elif not search_query:
