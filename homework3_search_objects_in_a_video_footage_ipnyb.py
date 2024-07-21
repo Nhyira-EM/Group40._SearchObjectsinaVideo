@@ -25,6 +25,7 @@ def get_frames(uploaded_file):
         
         cap = cv2.VideoCapture(filename)
         frame_count = 0
+        frame_filenames = []
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -32,9 +33,12 @@ def get_frames(uploaded_file):
             frame_count += 1
             frame_filename = f'frames/frame_{frame_count}.jpg'
             cv2.imwrite(frame_filename, frame)
+            frame_filenames.append(frame_filename)
         cap.release()
-        frame_filenames = sorted(os.listdir('frames'))
-        st.success(f"Extracted {frame_count} frames.")
+        if frame_count == 0:
+            st.warning("No frames extracted. Please check the video file.")
+        else:
+            st.success(f"Extracted {frame_count} frames.")
         return frame_filenames
 
 # Function to detect objects in the frames
@@ -46,8 +50,7 @@ def detect_all_objects(frame_filenames):
         model = InceptionV3(weights='imagenet', include_top=True)
         frame_obj_dict = {}
         for frame_filename in frame_filenames:
-            frame_path = os.path.join('frames', frame_filename)
-            img = tf.io.read_file(frame_path)
+            img = tf.io.read_file(frame_filename)
             img = tf.image.decode_image(img, channels=3)
             img = tf.cast(img, tf.float32)
             img = tf.image.resize(img, (299, 299))
@@ -85,24 +88,23 @@ def search_object(search_query, frame_obj_dict, all_obj):
             st.write(all_obj)
         else:
             for framee in obj_frames:
-                frame_path = os.path.join('frames', framee)
+                frame_path = framee
                 frame = cv2.imread(frame_path)
                 st.image(frame, caption=f"{search_query} in {framee}", use_column_width=True)
-
-# Function to handle the complete process
-def obj_in_video(search_query):
-    uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
-    if uploaded_file:
-        frame_filenames = get_frames(uploaded_file)
-        if frame_filenames:
-            frame_obj_dict, all_obj = detect_all_objects(frame_filenames)
-            search_object(search_query, frame_obj_dict, all_obj)
 
 # Streamlit app layout
 st.title("Object Detection in Video Frames")
 
+uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
 search_query = st.text_input("Enter the object to search for:")
-if search_query:
-    obj_in_video(search_query)
-else:
-    st.warning("Please enter an object to search for.")
+
+if st.button("Search"):
+    if uploaded_file and search_query:
+        frame_filenames = get_frames(uploaded_file)
+        if frame_filenames:
+            frame_obj_dict, all_obj = detect_all_objects(frame_filenames)
+            search_object(search_query, frame_obj_dict, all_obj)
+    elif not uploaded_file:
+        st.warning("Please upload a video file.")
+    elif not search_query:
+        st.warning("Please enter an object to search for.")
