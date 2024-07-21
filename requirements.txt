@@ -3,7 +3,6 @@ tensorflow
 opencv-python-headless
 matplotlib
 keras
-keras.backend
 numpy
 pandas
 Pillow
