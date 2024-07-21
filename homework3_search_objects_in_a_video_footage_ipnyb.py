@@ -84,7 +84,8 @@ def search_object(search_query, frame_obj_dict, all_obj):
         if len(obj_frames) == 0:
             st.warning("Object doesn't exist!")
             st.write("Choose from the list below:")
-            st.write(all_obj)
+            for obj in all_obj
+                st.write(obj)
         else:
             for framee in obj_frames:
                 frame_path = framee
